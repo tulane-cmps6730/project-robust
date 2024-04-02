@@ -18,6 +18,7 @@
 \usepackage{graphicx}
 \usepackage{times}
 \usepackage{latexsym}
+\usepackage{multirow}
 \renewcommand{\UrlFont}{\ttfamily\small}
 
 \usepackage{microtype}
@@ -27,82 +28,140 @@
 
 \newcommand\BibTeX{B\textsc{ib}\TeX}
 
-\title{Classifying news articles by partisan lean}
+\title{OT$^3$P: Test-Time Prompting for Language Models}
 
-\author{Alice Cooper \\
-  School's Out University / Detriot, MI \\
-  \texttt{email@domain} \\\And
-  Bob Seger \\
-  Night Moves U / Detroit, MI \\
-  \texttt{email@domain} \\}
+\author{Yunbei Zhang \\
+  Tulane University / New Orleans, LA \\
+  \texttt{yzhang111@tualne.edu} \\\And
+  Janet Wang \\
+  Tulane University / New Orleans, LA \\
+  \texttt{swang47@tulane.edu} \\}
 
 \date{}
 
 \begin{document}
 \maketitle
 \begin{abstract}
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+  We propose a novel algorithm for Test-Time Adaptation (TTA), Optimal Transport-guided Test-Time Visual Prompting (OT-VP), for Language and Vision-Language models.
+  This method aims to enhance the performance of pre-trained models when applied to previously unseen target tasks. 
+  Specifically, OT-VP employs Optimal Transport (OT) distance to learn a universal visual prompt, effectively aligning the distribution of the unseen target data with the source distribution, thereby facilitating more accurate model predictions. 
+  Upon evaluation, our approach demonstrates a significant improvement in accuracy. 
+
 \end{abstract}
 
 
 \section{Introduction}
 
-This is a skeleton latex document for you to write your report.
+The remarkable successes of Deep Neural Networks (DNNs) are often tempered by the challenges posed by discrepancies between training and testing data distributions \cite{recht2019imagenet, hendrycks2019benchmarking, koh2021wilds}.
+Such discrepancies are not uncommon in real-world applications, where variations in data due to natural differences and stylistic changes can significantly impact model performance \cite{ li2017deeper}.
+This problem has been well-documented across various studies, underscoring the fragility of DNNs in the face of distribution shifts \cite{hendrycks2019benchmarking}. 
+Domain Generalization (DG) has been proposed as a solution to this challenge, aiming to equip models with the ability to generalize to unseen domains by leveraging information from source domains during the training phase \cite{blanchard2011generalizing, zhou2022domain}. 
+Despite considerable efforts in this area, machine learning systems remain susceptible to domain shifts, with studies indicating minimal performance gains over conventional Empirical Risk Minimization (ERM) approaches \cite{gulrajani2020search, mehra2022do}.
 
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+In response to these limitations, a new line of research has emerged, focusing on enhancing model performance directly at test time \cite{wang2021tent, NEURIPS2021_1415fe9f}. 
+This approach allows models to leverage unlabeled test data from target domains. 
+This data offers insights into the target distribution, insights that are typically inaccessible in the DG framework. 
+Test-time adaptation, as demonstrated in \cite{NEURIPS2021_1415fe9f}, surpasses the capabilities of many existing DG strategies by utilizing immediate, real-world data to refine model accuracy.
+Inspired by these insights, our work pivots towards exploring test-time adaptation (TTA) as a strategic response to the challenges of domain shifts, aiming to harness the full potential of DNNs in unseen environments.
 
 \section{Related Work}
 
-Citations within the text appear in parentheses as~\citep{aho1972theory} or, if the author's name appears in the text itself, as \citet{andrew2007scalable}.
+\textbf{Optimal Transport} Optimal Transport (OT) theory, tracing back to the Monge problem in 1781, evolved significantly with the introduction of the Kantorovich relaxation \cite{kantorovich1942translocation} in 1942. 
+This advancement transformed OT into a robust framework for comparing distributions, shapes, and point clouds \cite{peyre2019computational}, leveraging the geometry of the underlying space. 
+OT operates on a complete and separable metric space $\mathcal{X}$, utilizing continuous or discrete probability measures $P, Q \in \mathcal{P(X)}$. 
+The Kantorovich formulation defines the OT problem as:
+\begin{equation}
+\mathrm{OT}_c(P, Q) := \mathop{\inf}\limits_{\pi \in \Pi(P, Q)} \int_{\mathcal{X} \times \mathcal{X}} c(\mathbf{x}_1, \mathbf{x}_2)d\pi (\mathbf{x}_1, \mathbf{x}_2),
+\end{equation}
+where $c(\cdot,\cdot): \mathcal{X}\times\mathcal{X} \rightarrow \mathbb{R^+}$ denotes a cost function, and $\Pi(P, Q)$ represents the set of all possible couplings or joint distributions over $\mathcal{X}\times\mathcal{X}$ with $P$ and $Q$ as their marginals. 
+The term $W_p(P,Q) := \mathrm{OT}_c(P, Q)^{\frac{1}{p} }$ is referred to as the $p$-Wasserstein distance when the cost function $c(\mathbf{x}_1, \mathbf{x}_2)=d(\mathbf{x}_1, \mathbf{x}_2)^p$ for some $p\geq1$ where $d$ is a metric of $\mathcal{X}$.
 
-
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+In real-world applications, the true marginal distributions $P, Q$ are often unknown, leading to reliance on discrete empirical distributions $\hat{P}=\sum_{i=1}^{m}\mathbf{a}_i\delta_{\mathbf{x}_1^i}$ and $\hat{Q}=\sum_{i=1}^{n}\mathbf{b}_i\delta_{\mathbf{x}_2^i}$, with $\mathbf{a},\mathbf{b}$ as vectors in the probability simplex. 
+The cost function then simplifies to an $m \times n$ cost matrix $\mathbf{C}$, where $\mathbf{C}_{ij} = c(\mathbf{x}_1^i, \mathbf{x}_2^j)$. 
+For computational efficiency, the Sinkhorn algorithm \cite{cuturi2013sinkhorn} introduces an entropic regularizer to the OT problem, facilitating practical applications such as domain adaptation \cite{courty2016optimal} and the evaluation of distances between datasets \cite{alvarez2020geometric}. 
+This regularized approach, which can be computed using \verb|POT| \cite{flamary2021pot}, allows for the computation of an optimal mapping from source to target domains.
 
 
 \section{Methods}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+\subsection{Preliminaries}
+\label{problem_setup_preliminaries}
+\textbf{Problem Definitions} Denote the source (target) domain as $\mathcal{D}^s=\{\mathbf{x}_i^s, y_i^s\}_{i=1}^{n_s}$ ($\mathcal{D}^t=\{\mathbf{x}_i^t, y_i^t\}_{i=1}^{n_t}$, where $\mathbf{x} \in \mathcal{X}$ represents the input image and $y\in \mathcal{Y}$ is the label.
+The dataset $\mathcal{D}^s$ ($\mathcal{D}^t$) comprises samples that are identically and independently distributed (i.i.d.), characterized by some probability distribution $P^s(X, Y)$ ($P^t(X, Y)$).
 
+In the context of Test-Time Adaptation (TTA), the model $f$ is initially trained on the source domain, e.g. minimizing the empirical risk, 
+\begin{equation}
+\label{eq:erm}
+    \mathop{\arg \min}\limits_{f} \frac{1}{n_s} \sum_{i=1}^{n_s} \ell(f(\mathbf{x}_i^s), y^s)
+\end{equation}
+where $\ell$ is a loss function. Throughout this paper, we refer to optimizing the model with Eq. \ref{eq:erm} as ERM. 
+Generally, the model $f$ is structured as a composition $h \circ \phi$, with the feature extractor $\phi: \mathcal{X} \rightarrow \mathcal{Z}$ learning the input's representation, and the classifier $h: \mathcal{Z} \rightarrow \mathcal{Y}$ predicting the class label. 
+
+For any unlabelled target domain $\mathcal{D}^t$, TTA aims to adapt model $f$ or/and target input $x^t$ to bridge the performance gap under the assumption that the source domain and target domain share the same label set. In our approach, we employ a Vision Transformer as the model $f$, which remains fixed during adaptation.
+
+\subsection{Test-time Adaptation with OT$^3$P}
+\label{ot-vp}
+In the test-time scenario, labeled target data is not available, thereby the prompt cannot be optimized. 
+Thus, we propose an unsupervised prompt adaptation method: Optimal Transport-guided Test-Time Visual Prompt Adaptation (OT-VP). 
+
+Given an unlabelled target dataset $\mathcal{D}^t$, we pass them through the visual encoder with learnable prompts to get the representation. 
+Source representations are computed offline and utilized directly at test time. 
+Then we compute the OT distance between source and target representations. 
+Here, we consider two cost functions for OT: The first is the cost between two representations without label information, i.e., for any two representations $\mathbf{z}^s$, $\mathbf{z}^t$, 
+\begin{equation}
+    c(\mathbf{z}^s, \mathbf{z}^t) = \|\mathbf{z}^s- \mathbf{z}^t||_2
+\end{equation}
+
+The other includes label/pseudo-label information:
+\begin{equation}
+    c((\mathbf{z}^s, y^s), (\mathbf{z}^t, \hat y^t)) = \|\mathbf{z}^s- \mathbf{z}^t||_2 + \infty \cdot \mathbbm{1}_{\{y^s \neq \hat y^t\}}
+\end{equation}
+where $\hat y^t$ is the pseudo label from the pre-trained model.
+The OT distance will be used to update the prompts for the target dataset as follows:
+\begin{equation}
+\label{eq:ot-vp}
+    \mathbf{\gamma}^* = \mathop{\arg \min}\limits_{\mathbb{\gamma}} OT_c(P^s_\#, P^t_\#)
+\end{equation}
+where $P^s_\#$ is a distribution over $(\phi(\mathbf{x}^s), y^s)$ and $P^t_\#$ is a distribution over $(\phi(\mathbf{x}^t), \hat y^t)$ with pseudo label $\hat y^t := f(\mathbf{x}^t; \mathbf{\gamma}))$
 
 
 \section{Results}
+For the purpose of computational efficiency, we employ simplified versions of the pre-trained BERT and RoBERTa models \cite{sanh2020distilbert}. We focus on two datasets, Stanford Sentiment Treebank (SST) and Yelp \cite{zhang2015character}, each containing five distinct classes. Our baseline approach, denoted as Empirical Risk Minimization (ERM), involves using one of these datasets as the source domain for fine-tuning the pre-trained model, followed by evaluation on the other dataset to assess transferability. Our proposed method introduces the concept of learning prompt tokens tailored to the target task subsequent to the initial pre-training phase. Furthermore, we conduct a comparative analysis with the current Test-Time Adaptation (TTA) method, known as Tent \cite{wang2021tent}, to evaluate the efficacy of our approach.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-
-Table~\ref{tab:a_table} shows a table. Note that we refer to output generated by \texttt{Experiments.ipynb}. This way, whenever we re-run our notebook, we can regenerate the paper with the latest results.
+Table \ref{tab:main} demonstrates our method across different pre-trained models and target tasks.
 
 \begin{table}[ht]
 \centering
-% note that we can refer to tables generated by our Experiments.ipynb notbook.
-\input{../notebooks/table.tex}
-\caption{\label{tab:a_table} A caption. }
+
+\begin{tabular}{lccc}
+\hline
+\textbf{Model} & \textbf{Algorithm} & \textbf{SST} & \textbf{Yelp} \\
+\hline
+\multirow{3}{*}{\textbf{BERT}} & ERM & 34.8 & 37.3 \\
+& Tent & 41.2 & 43.5 \\
+& OT$^3$P & 47.2 & 49.3 \\
+\hline
+
+\multirow{3}{*}{\textbf{RoBERTa}} & ERM & 35.1 & 36.3 \\
+& Tent & 46.7 & 41.5 \\
+& OT$^3$P & 51.3 & 48.7 \\
+\hline
+
+\end{tabular}
+\caption{\label{tab:a_table} Comparison of Algorithm Performance on Sentiment Analysis for the Target Domain}
+\label{tab:main}
 \end{table}
-
-Figure~\ref{fig:a_label} shows a figure
-
-\begin{figure}[ht]
-	\centering
-	% note that we can refer to figures generated by our Experiments.ipynb notbook.
-	\includegraphics[width=3.5in]{../notebooks/results.pdf}
-	\caption{A caption}
-	\label{fig:a_label}
-\end{figure}
 
 \section{Discussion}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-
-\section{Conclusion}
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
+Our method surpasses competing algorithms in sentiment analysis tasks. 
+Moving forward, we aim to assess its performance on Vision-Language models, specifically focusing on CLIP\cite{radford2021learning}. 
 
 \section{Division of Labor}
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
+\begin{itemize}
+    \item Janet will be responsible for running the experiments, analyzing the experimental results, and writing the report. 
+    \item Yunbei will be responsible for collecting the data, surveying related works, and running the experiments.
+\end{itemize}
 
 
 
