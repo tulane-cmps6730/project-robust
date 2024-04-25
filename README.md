@@ -1,16 +1,5 @@
-# CMPS 6730 Sample Project
+# [OT3P: Optimal-Transport guided Test-Time Adaptation for Vision-Language Models](https://docs.google.com/presentation/d/1Z65LXU6kdW3wt3b9PXE5-DFxuurNGz3e7i-bBIPssi4/edit?usp=sharing)
 
-This repository contains starter code for the final project in CMPS 4730/6730: Natural Language Processing at Tulane University.
-
-The code in this repository will be copied into your team's project repository at the start of class to provide a starting point for your project.
-
-You should edit this file to include a summary of the goals, methods, and conclusions of your project.
-
-The structure of the code supports the following:
-
-- A simple web UI using Flask to support a demo of the project
-- A command-line interface to support running different stages of the project's pipeline
-- The ability to easily reproduce your work on another machine by using virtualenv and providing access to external data sources.
 
 ### Using this repository
 
