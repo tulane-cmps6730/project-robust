@@ -7,19 +7,19 @@ This README provides an overview and usage instructions for the shell scripts us
 1. **erm.sh** - Trains models using Empirical Risk Minimization (ERM) on single and multiple source environments. The script accepts dataset name and data directory as inputs. To run the script, enter the command below in the terminal.
 
    ```bash
-   DATA_DIR=<path_to_data> ./erm.sh <dataset_name>
+   ./erm.sh <dataset_name>
    ```
 
 2. **baseline_tta.sh** - Performs test-time adaptation using different algorithms on the PACS dataset after ERM model is trained. This script iterates over different seeds and environments to apply test-time adaptation (TTA) methods like T3A and Tent on models trained under the ERM framework.  To run the script, enter the command below in the terminal.
 
    ```bash
-   bash ./baseline_tta.sh <dataset_name>
+   ./baseline_tta.sh <dataset_name>
    ```
 
 3. **OT3P.sh** - Code for our proposed method. It applies prompt-based test-time adaptation using a trained ERM model. It requires specifying a data directory and a dataset. To run the script, enter the command below in the terminal.
 
    ```bash
-   DATA_DIR=<path_to_data> ./OT3P.sh <dataset_name>
+   ./OT3P.sh <dataset_name>
    ```
 
 ##### Note: our codes are adapted from the DomainBed repository. You can find the original code at https://github.com/facebookresearch/DomainBed
