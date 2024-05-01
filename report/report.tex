@@ -28,7 +28,7 @@
 
 \newcommand\BibTeX{B\textsc{ib}\TeX}
 
-\title{OT$^3$P: Test-Time Prompting for Language Models}
+\title{OT$^3$P: Optimal-Transport guided Test-Time Adaptation for Vision-Language Models}
 
 \author{Yunbei Zhang \\
   Tulane University / New Orleans, LA \\
@@ -62,7 +62,16 @@ In response to these limitations, a new line of research has emerged, focusing o
 This approach allows models to leverage unlabeled test data from target domains. 
 This data offers insights into the target distribution, insights that are typically inaccessible in the DG framework. 
 Test-time adaptation, as demonstrated in \cite{NEURIPS2021_1415fe9f}, surpasses the capabilities of many existing DG strategies by utilizing immediate, real-world data to refine model accuracy.
-Inspired by these insights, our work pivots towards exploring test-time adaptation (TTA) as a strategic response to the challenges of domain shifts, aiming to harness the full potential of DNNs in unseen environments.
+Inspired by these insights, our work pivots towards exploring test-time adaptation (TTA) as a strategic response to the challenges of domain shifts, aiming to harness the full potential of DNNs in unseen environments. Our motivations shows in Fig. \ref{fig:motivation}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=1\linewidth]{motivation.pdf}
+    \caption{Motivation of our approach. (a) An ERM model trained on the source domain struggles to adapt to the target domain due to domain shifts. (b) Our method optimizes prompt tokens by minimizing the Optimal Transport distance to align the target domain with the source domain without changing the decision boundary.
+    }
+    \label{fig:motivation}
+    \vspace{-0.5cm}
+\end{figure}
 
 \section{Related Work}
 
@@ -124,11 +133,58 @@ The OT distance will be used to update the prompts for the target dataset as fol
 \end{equation}
 where $P^s_\#$ is a distribution over $(\phi(\mathbf{x}^s), y^s)$ and $P^t_\#$ is a distribution over $(\phi(\mathbf{x}^t), \hat y^t)$ with pseudo label $\hat y^t := f(\mathbf{x}^t; \mathbf{\gamma}))$
 
+\subsection{Vision Transformers}
+\label{sec:vit}
+A Vision Transformer (ViT) \cite{dosovitskiy2021an, liu2021swin} processes an input image $x$ by initially dividing it into $k$ patches $\{I_i\}_{i=1}^k$. 
+An encoding layer $E$ is employed to transform the input patches into patch tokens, to which positional embedding are subsequently added to retain spatial information. 
+The inputs to the transformer layers consist of these encoded patch tokens augmented with a special classification token \verb|[CLS]|. 
+The ViT is composed of several sequential blocks, and each block contains an attention layer and a Multi-Layer Perceptron  (MLP) layer. 
+The prediction of the vision transformer can be formulated as follows:
+\begin{equation}
+\begin{aligned}
+    \texttt{[CLS]} &= \phi([\texttt{[CLS]}, E(I_1), ..., E(I_k)]), \\
+    y &= h(\texttt{[CLS]}),
+\end{aligned}
+\end{equation}
+where $[\cdot]$ represents concatenation of tokens. 
+
+Incorporating a visual prompt into the ViT represents a parameter-efficient approach for fine-tuning or adapting the model, particularly when it is fixed \cite{jia2022visual, ge2023domain}. 
+By introducing $l$ prompt tokens $\{\texttt{[Prompt]}_i\}_{i=1}^l=: \mathbf{\gamma}$, the prediction process can be reformulated as follows:
+\begin{equation}
+\begin{aligned}
+    \texttt{[CLS]} &= \phi([\texttt{[CLS]}, \{E(I_i)\}_{i=1}^k, \gamma]) \\
+    y &= h(\texttt{[CLS]})
+\end{aligned}
+\label{eq:infer_with_prompt}
+\end{equation}
+The optimal prompts can be optimized as follows when the labels are available:
+\begin{equation}
+\label{eq:supervised_vp}
+    \mathbf{\gamma}^* = \mathop{\arg \min}\limits_{\mathbf{\gamma}} \mathbb{E}[\ell(f(\mathbf{x}; \mathbb{\gamma}), y)]
+\end{equation}
+
+\subsection{Optimal Transport}
+\label{sec:ot}
+Optimal Transport (OT) theory, tracing back to the Monge problem in 1781, evolved significantly with the introduction of the Kantorovich relaxation \cite{kantorovich1942translocation} in 1942. 
+This advancement transformed OT into a robust framework for comparing distributions, shapes, and point clouds \cite{peyre2019computational}, leveraging the geometry of the underlying space. 
+OT operates on a complete and separable metric space $\mathcal{X}$, utilizing continuous or discrete probability measures $P, Q \in \mathcal{P(X)}$. 
+The Kantorovich formulation defines the OT problem as:
+\begin{equation}
+\mathrm{OT}_c(P, Q) := \mathop{\inf}\limits_{\pi \in \Pi(P, Q)} \int_{\mathcal{X} \times \mathcal{X}} c(\mathbf{x}_1, \mathbf{x}_2)d\pi (\mathbf{x}_1, \mathbf{x}_2),
+\end{equation}
+where $c(\cdot,\cdot): \mathcal{X}\times\mathcal{X} \rightarrow \mathbb{R^+}$ denotes a cost function, and $\Pi(P, Q)$ represents the set of all possible couplings or joint distributions over $\mathcal{X}\times\mathcal{X}$ with $P$ and $Q$ as their marginals. 
+The term $W_p(P,Q) := \mathrm{OT}_c(P, Q)^{\frac{1}{p} }$ is referred to as the $p$-Wasserstein distance when the cost function $c(\mathbf{x}_1, \mathbf{x}_2)=d(\mathbf{x}_1, \mathbf{x}_2)^p$ for some $p\geq1$ where $d$ is a metric of $\mathcal{X}$.
+
+In real-world applications, the true marginal distributions $P, Q$ are often unknown, leading to reliance on discrete empirical distributions $\hat{P}=\sum_{i=1}^{m}\mathbf{a}_i\delta_{\mathbf{x}_1^i}$ and $\hat{Q}=\sum_{i=1}^{n}\mathbf{b}_i\delta_{\mathbf{x}_2^i}$, with $\mathbf{a},\mathbf{b}$ as vectors in the probability simplex. 
+The cost function then simplifies to an $m \times n$ cost matrix $\mathbf{C}$, where $\mathbf{C}_{ij} = c(\mathbf{x}_1^i, \mathbf{x}_2^j)$. 
+For computational efficiency, the Sinkhorn algorithm \cite{cuturi2013sinkhorn} introduces an entropic regularizer to the OT problem, facilitating practical applications such as domain adaptation \cite{courty2016optimal} and the evaluation of distances between datasets \cite{alvarez2020geometric}. 
+This regularized approach, which can be computed using \verb|POT| \cite{flamary2021pot}, allows for the computation of an optimal mapping from source to target domains.
+
 
 \section{Results}
 For the purpose of computational efficiency, we employ simplified versions of the pre-trained BERT and RoBERTa models \cite{sanh2020distilbert}. We focus on two datasets, Stanford Sentiment Treebank (SST) and Yelp \cite{zhang2015character}, each containing five distinct classes. Our baseline approach, denoted as Empirical Risk Minimization (ERM), involves using one of these datasets as the source domain for fine-tuning the pre-trained model, followed by evaluation on the other dataset to assess transferability. Our proposed method introduces the concept of learning prompt tokens tailored to the target task subsequent to the initial pre-training phase. Furthermore, we conduct a comparative analysis with the current Test-Time Adaptation (TTA) method, known as Tent \cite{wang2021tent}, to evaluate the efficacy of our approach.
 
-Table \ref{tab:main} demonstrates our method across different pre-trained models and target tasks.
+Table \ref{tab:main} demonstrates our method across different pre-trained models and target tasks. Table \ref{tab:main1} show the comparison between our method and SOTA on CLIP models.
 
 \begin{table}[ht]
 \centering
@@ -152,19 +208,37 @@ Table \ref{tab:main} demonstrates our method across different pre-trained models
 \label{tab:main}
 \end{table}
 
-\section{Discussion}
+\begin{table}[ht]
+\centering
+\begin{tabular}{lccccc}
+\hline
+\textbf{Algorithm} & \textbf{ImageNet V2} & \textbf{ImageNet Sketch} & \textbf{ImageNet A} & \textbf{ImageNet R} & \textbf{OOD Avg.} \\
+\hline
+\textbf{MaPLe} & 64.07 & 49.15 & 50.90 & 76.98 & 60.28 \\
+ \textbf{MaPLe+TPT} & 64.87 & 48.16 & 58.08 & 78.12 & 62.31 \\
+ \textbf{OT$^3$P} & 65.29 & 50.23 & 59.37 & 79.33 & 63.55 \\
+\hline
+\end{tabular}
+\caption{Comparison of Algorithm Performance on Objective Detection Tasks for CLIP Model}
+\label{tab:main1}
+\end{table}
 
-Our method surpasses competing algorithms in sentiment analysis tasks. 
-Moving forward, we aim to assess its performance on Vision-Language models, specifically focusing on CLIP\cite{radford2021learning}. 
 
-\section{Division of Labor}
-\begin{itemize}
-    \item Janet will be responsible for running the experiments, analyzing the experimental results, and writing the report. 
-    \item Yunbei will be responsible for collecting the data, surveying related works, and running the experiments.
-\end{itemize}
+\section{Discussion and Conclusion}
+
+We propose OT$^3$P, a novel test-time adaptation approach that leverages prompt learning for effective test-time adaptation. 
+OT$^3$P stands out by adapting without altering the pre-trained model and effectively aligning the source and target domains, offering a more practical solution than established methods. 
+Our experiments reveal OT$^3$P strengths: consistently outperforming existing TTA methods for ViT and DG prompt learning, and reducing prediction entropy to increase model confidence. By optimizing universal prompts for the target domain, OT$^3$P simplifies the adaptation process, enhancing the applicability of deep learning models in real-world settings.
+
+% \section{Division of Labor}
+% \begin{itemize}
+%     \item Janet will be responsible for running the experiments, analyzing the experimental results, and writing the report. 
+%     \item Yunbei will be responsible for collecting the data, surveying related works, and running the experiments.
+% \end{itemize}
 
 
-
+\clearpage
+\newpage
 
 \bibliography{references}
 \bibliographystyle{acl_natbib}
